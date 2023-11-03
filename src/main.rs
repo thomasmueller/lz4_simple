@@ -17,18 +17,34 @@ use std::io::ErrorKind;
 pub fn main() {
     let args: Vec<String> = env::args().collect();
     let len = env::args().len();
-    if len != 4 || args[1] != "-d" {
-        eprintln!("Usage: mytest -d <input> <output>");
-        return;
+    if len == 4 && args[1] == "-d" {
+        let input_file_name = &args[2];
+        let output_file_name = &args[3];
+        let result = decompress(&input_file_name, &output_file_name);
+        match result {
+            Ok(bytes) => {
+                println!("Decompressed {bytes} bytes");
+            },
+            Err(e) => {
+                eprintln!("Failed to decompress {input_file_name} to {output_file_name}: {e}");
+            }
+        };
+    } else if len == 3 && args[1] == "-h" {
+        let input_file_name = &args[2];
+        let result = xxhash32_file(&input_file_name);
+        match result {
+            Ok(hash) => {
+                println!("{:08x}", hash);
+            },
+            Err(e) => {
+                eprintln!("Failed to read {input_file_name}: {e}");
+            }
+        };
+    } else {
+        eprintln!("Usage:");
+        eprintln!("lz4_simple -d <input> <output>   Decompress the input");
+        eprintln!("lz4_simple -h <input>            Calculate the xxhash32");
     }
-    let input_file_name = &args[2];
-    let output_file_name = &args[3];
-    let result = decompress(&input_file_name, &output_file_name);
-    match result { Ok(bytes) => {
-        println!("Decompressed {bytes} bytes");
-    }, Err(e) => {
-        eprintln!("Failed to decompress {input_file_name} to {output_file_name}: {e}");
-    } };
 }
 
 fn decompress(input_file_name: &str, output_file_name: &str) -> Result<usize, Error> {
@@ -185,6 +201,27 @@ fn expand(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: usize) ->
         out_pos += run_len;
     }
     return Ok(out_pos);
+}
+
+fn xxhash32_file(input_file_name: &str) -> Result<u32, Error> {
+    let in_file = File::open(input_file_name)?;
+    let mut remaining = in_file.metadata().unwrap().len();
+    let mut reader = BufReader::new(in_file);
+    let mut block: Vec<u8> = Vec::new();
+    let block_size = 8 * 1024 * 1024;
+    block.resize(block_size, 0);
+    let mut hash = 0;
+    while remaining > 0 {
+        let read = if remaining < block_size as u64 {
+            remaining as usize
+        } else {
+            block_size
+        };
+        reader.read_exact(&mut block[0..read])?;
+        remaining -= read as u64;
+        hash = xxhash32(&block, 0, read, hash);
+    }
+    return Ok(hash);
 }
 
 fn xxhash32(buf: &Vec<u8>, start: usize, len: usize, seed: u32) -> u32 {
