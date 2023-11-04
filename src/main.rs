@@ -43,7 +43,7 @@ pub fn main() {
     } else {
         eprintln!("Usage:");
         eprintln!("lz4_simple -d <input> <output>   Decompress the input");
-        eprintln!("lz4_simple -h <input>            Calculate the xxhash32");
+        eprintln!("lz4_simple -h <input>            Calculate the hash");
     }
 }
 
