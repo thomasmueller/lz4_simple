@@ -11,6 +11,7 @@ A very simple LZ4 implementation.
 
 * Decompress (only default settings)
 * The hash is the XXHash32
+* 100% safe code
 
 ## Performance
 
