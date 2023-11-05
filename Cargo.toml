@@ -10,6 +10,10 @@ opt-level = 0
 
 [profile.release]
 opt-level = 3
+strip = true
+panic = "abort"
+lto = true
+# codegen-units = 1
 
 [dependencies]
 # macos-perf = "0.1.1"
