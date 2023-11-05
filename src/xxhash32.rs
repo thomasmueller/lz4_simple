@@ -129,3 +129,28 @@ impl XXHash32 {
         return Ok(h32 ^ (h32 >> 16));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn read_vec_u32_le_test() { // <-- actual test
+        let mut x: Vec<u8> = Vec::new();
+        x.resize(4, 0);
+        x[0] = 0x12;
+        x[1] = 0x34;
+        x[2] = 0x56;
+        x[3] = 0x78;
+        assert_eq!(0x78563412, read_vec_u32_le(&x, 0));
+    }
+
+    #[test]
+    fn read_u32_le_test() { // <-- actual test
+        let mut x: [u8; 4] = [0; 4];
+        x[0] = 0x12;
+        x[1] = 0x34;
+        x[2] = 0x56;
+        x[3] = 0x78;
+        assert_eq!(0x78563412, read_u32_le(&x, 0));
+    }
+}
