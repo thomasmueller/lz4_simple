@@ -4,11 +4,22 @@ use std::fs::File;
 use std::io::Error;
 use std::io::ErrorKind;
 
+pub fn error(message: &str) -> Result<usize, Error> {
+    return Err(Error::new(ErrorKind::Other, message));
+}
+
 pub fn read_vec_u32_le(data: &Vec<u8>, pos: usize) -> u32 {
     return (data[pos] as u32) |
         ((data[pos + 1] as u32) << 8) |
         ((data[pos + 2] as u32) << 16) |
         ((data[pos + 3] as u32) << 24);
+}
+
+pub fn write_vec_u32_le(data: &mut Vec<u8>, pos: usize, x: u32) {
+    data[pos] = x as u8;
+    data[pos + 1] = (x >> 8) as u8;
+    data[pos + 2] = (x >> 16) as u8;
+    data[pos + 3] = (x >> 24) as u8;
 }
 
 pub fn read_u32_le(data: &[u8], pos: usize) -> u32 {
@@ -133,8 +144,16 @@ impl XXHash32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn read_vec_u32_le_test() { // <-- actual test
+    fn hello_world() {
+        let mut hash = XXHash32::new(0);
+        let result = hash.update(&"Hello world".as_bytes().to_vec(), 0, 11);
+        assert_eq!(0x9705d437, result.unwrap());
+    }
+
+    #[test]
+    fn read_vec_u32_le_test() {
         let mut x: Vec<u8> = Vec::new();
         x.resize(4, 0);
         x[0] = 0x12;
@@ -145,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn read_u32_le_test() { // <-- actual test
+    fn read_u32_le_test() {
         let mut x: [u8; 4] = [0; 4];
         x[0] = 0x12;
         x[1] = 0x34;
