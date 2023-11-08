@@ -56,8 +56,9 @@ pub fn main() {
         };
     } else {
         eprintln!("Usage:");
-        eprintln!("lz4_simple -d <input> <output>   Decompress the input");
-        eprintln!("lz4_simple -h <input>            Calculate the hash");
+        eprintln!("lz4_simple -1 <input> <output>   Compress the input file into the output file");
+        eprintln!("lz4_simple -d <input> <output>   Decompress the input file into the output file");
+        eprintln!("lz4_simple -h <input>            Calculate the XXHash32 checksum");
     }
 }
 

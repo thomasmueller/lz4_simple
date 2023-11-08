@@ -81,8 +81,8 @@ fn hash(data: &Vec<u8>, pos: usize) -> usize {
 
 fn run_len_calc(a: &Vec<u8>, ai: usize, a_len: usize, b: &Vec<u8>, bi: usize, b_len: usize) -> usize {
     let mut run_len = 0;
-    while ai + run_len < a_len - 5 &&
-        bi + run_len < b_len - 5 &&
+    while ai + run_len < a_len - 16 &&
+        bi + run_len < b_len - 16 &&
         a[ai + run_len] == b[bi + run_len] {
         run_len += 1;
     }
@@ -103,10 +103,10 @@ fn compress_block(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: u
     loop {
         let mut run_len: usize;
         let candidate_pos: usize;
-        if in_pos < in_len {
+        if in_pos + 16 < in_len {
             let h = hash(in_data, in_pos - 4);
             candidate_pos = hash_tab[h];
-            if candidate_pos >= in_pos - 4 || candidate_pos < o || candidate_pos < in_pos - 0xffff {
+            if candidate_pos >= in_pos - 4 || candidate_pos < o || candidate_pos + 0xffff < in_pos {
                 run_len = 0;
             } else {
                 run_len = run_len_calc(in_data, in_pos, in_len,in_data, candidate_pos + 4, in_len);
@@ -118,8 +118,11 @@ fn compress_block(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: u
                 continue;
             }
         } else {
+            literal_len += in_len - in_pos;
+            in_pos = in_len;
             run_len = 4;
             candidate_pos = 0;
+            // println!("last literal block in_len {in_len} in_pos {in_pos} literals: {literal_len} ");
         }
         let tag_pos = out_pos;
         out_pos += 1;
@@ -135,11 +138,12 @@ fn compress_block(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: u
             literal_len = 0xf;
         }
         for i in 0..copy_len {
-            out_data[out_pos] = in_data[in_pos - copy_len + i];
-            out_pos += 1;
+            let x = in_data[in_pos - copy_len + i];
+            out_data[out_pos + i] = x;
         }
-        let offset = in_pos - (candidate_pos + 4);
+        out_pos += copy_len;
         if in_pos < in_len {
+            let offset = in_pos - (candidate_pos + 4);
             out_data[out_pos] = offset as u8;
             out_data[out_pos + 1] = (offset >> 8) as u8;
             out_pos += 2;

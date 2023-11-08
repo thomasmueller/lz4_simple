@@ -1,16 +1,18 @@
-# lz4_simple
+# Simple LZ4
 
 A very simple LZ4 implementation.
 
 ## Usage
 
-    lz4_simple -d <input> <output>   Decompress the input
-    lz4_simple -h <input>            Calculate the hash
+    lz4_simple -1 <input> <output>   Compress the input file into the output file
+    lz4_simple -d <input> <output>   Decompress the input file into the output file
+    lz4_simple -h <input>            Calculate the XXHash32 checksum
 
 ## Features
 
-* Decompress (only default settings)
-* The hash is the XXHash32
+* Compress a file
+* Decompress a compressed file (only default settings are supported)
+* Calculate the XXHash32 checksum of a file
 * 100% safe code
 
 ## Performance
@@ -53,7 +55,4 @@ Coverage of tests:
         -show-line-counts-or-regions \
         -show-instantiations \
         -name-regex=".*"
-
-
-Show result:
 

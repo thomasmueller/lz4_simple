@@ -125,6 +125,7 @@ fn decompress_block(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o:
         }
         let offset = ((in_data[p] as u32) |
             ((in_data[p + 1] as u32) << 8)) as usize;
+        // println!("    offset = {offset}");
         if offset == 0 {
             return error("Offset 0");
         }
@@ -152,7 +153,7 @@ fn decompress_block(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o:
             out_data[out_pos + i] = out_data[out_pos + i - offset];
         }
         out_pos += run_len;
-        // println!("    out_pos={out_pos} run_len={run_len} offset={offset}");
+        // println!("    p={p} out_pos={out_pos} run_len={run_len} offset={offset}");
     }
     return Ok(out_pos);
 }
