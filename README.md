@@ -13,7 +13,7 @@ A very simple LZ4 implementation.
 * Compress a file
 * Decompress a compressed file (only default settings are supported)
 * Calculate the XXHash32 checksum of a file
-* 100% safe code
+* 100% safe code, written in Rust
 
 ## Performance
 
