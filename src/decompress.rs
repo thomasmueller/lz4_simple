@@ -93,7 +93,7 @@ pub fn decompress_file(input_file_name: &str, output_file_name: &str) -> Result<
     return Ok(output_file_size);
 }
 
-fn decompress_block(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: usize) -> Result<usize, Error> {
+pub fn decompress_block(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: usize) -> Result<usize, Error> {
     if in_len > in_data.len() {
         return error("Input buffer too small");
     }

@@ -31,10 +31,13 @@ pub fn main() {
                 eprintln!("Failed to decompress {input_file_name} to {output_file_name}: {e}");
             }
         };
-    } else if len == 4 && args[1] == "-1" {
+    } else if len == 4 && (args[1] == "-1" || args[1] == "-2" || args[1] == "-3"
+        || args[1] == "-4" || args[1] == "-5" || args[1] == "-6"
+        || args[1] == "-7" || args[1] == "-8" || args[1] == "-9")  {
+            let level: usize = args[1].chars().nth(1).unwrap() as usize - '0' as usize;
             let input_file_name = &args[2];
             let output_file_name = &args[3];
-            let result = compress_file(&input_file_name, &output_file_name);
+            let result = compress_file(&input_file_name, &output_file_name, level);
             match result {
                 Ok(bytes) => {
                     println!("Compressed {bytes} bytes");
