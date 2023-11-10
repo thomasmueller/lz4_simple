@@ -64,27 +64,25 @@ pub fn compress_file(input_file_name: &str, output_file_name: &str, level: usize
     return Ok(file_size);
 }
 
-const HASH_SIZE: usize = 1 << 18;
-
 fn hash64(x: u64) -> u64 {
     let a = (x ^ (x >> 33)).wrapping_mul(0xff51afd7ed558ccd);
     let b = (a ^ (a >> 33)).wrapping_mul(0xc4ceb9fe1a85ec53);
     return b ^ (b >> 33);
 }
 
-fn hash(data: &Vec<u8>, pos: usize) -> usize {
+fn hash(data: &Vec<u8>, pos: usize, mask: usize) -> usize {
     let x: usize = ((data[pos] as usize) << 24)
         | ((data[pos + 1] as usize) << 16)
         | ((data[pos + 2] as usize) << 8)
         | (data[pos + 3] as usize);
-    return hash64(x as u64) as usize & (HASH_SIZE - 1) as usize;
+    return hash64(x as u64) as usize & mask as usize;
 }
 
-fn run_len_calc(a: &Vec<u8>, ai: usize, a_len: usize, b: &Vec<u8>, bi: usize, b_len: usize) -> usize {
+fn run_len_calc(a: &Vec<u8>, ai: usize, a_len: usize, bi: usize, b_len: usize) -> usize {
     let mut run_len = 0;
     while ai + run_len < a_len - 16 &&
         bi + run_len < b_len - 16 &&
-        a[ai + run_len] == b[bi + run_len] {
+        a[ai + run_len] == a[bi + run_len] {
         run_len += 1;
     }
     return run_len;
@@ -92,31 +90,36 @@ fn run_len_calc(a: &Vec<u8>, ai: usize, a_len: usize, b: &Vec<u8>, bi: usize, b_
 
 struct Compress {
     hash_tab: Vec<u32>,
-    next_tab: Vec<u32>,
+    chain: Vec<u32>,
     len: usize,
     stop_at_match_len: usize,
-    max_search: usize
+    max_search: usize,
+    mask: usize,
+    step: usize
 }
 
 impl Compress {
 
     pub fn new(len: usize, level: usize) -> Compress {
         let mut hash: Vec<u32> = Vec::new();
-        hash.resize(HASH_SIZE, u32::MAX);
-        let mut next: Vec<u32> = Vec::new();
-        next.resize(len, u32::MAX);
+        let mask = (1 << (15 + level)) - 1;
+        hash.resize(mask + 1, u32::MAX);
+        let mut chain: Vec<u32> = Vec::new();
+        chain.resize(len, u32::MAX);
         let stop_at_match_len = level * 20;
-        let max_search = level * 4;
+        let max_search = 5 * level - 4;
+        let step = if level == 1 { 4 } else { 1 };
         Compress {
             hash_tab: hash,
-            next_tab: next,
+            chain,
             len,
             stop_at_match_len,
-            max_search
+            max_search,
+            mask,
+            step
         }
     }
     fn compress_block(&mut self, in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: usize) -> Result<usize, Error> {
-        // println!("compress_block inlen {in_len} o {o}");
         if in_len > in_data.len() {
             return error("Input buffer too small");
         }
@@ -126,14 +129,13 @@ impl Compress {
         let mut out_pos = o;
         let mut literal_len = min(4, in_len);
         let mut in_pos = literal_len;
-        // println!("start {in_pos} o {o}");
         loop {
             let mut run_len: usize;
             let mut candidate_pos: usize;
             if in_pos + 16 < in_len {
-                let h = hash(in_data, in_pos);
+                let h = hash(in_data, in_pos, self.mask);
                 let first_candidate = self.hash_tab[h];
-                self.next_tab[in_pos] = first_candidate;
+                self.chain[in_pos] = first_candidate;
                 self.hash_tab[h] = in_pos as u32;
                 candidate_pos = first_candidate as usize;
                 let mut best_candidate: usize = 0;
@@ -142,7 +144,7 @@ impl Compress {
                     if candidate_pos >= in_pos || candidate_pos < o || candidate_pos + 0xffff < in_pos {
                         break;
                     } else {
-                        run_len = run_len_calc(in_data, in_pos, in_len, in_data, candidate_pos, in_len);
+                        run_len = run_len_calc(in_data, in_pos, in_len, candidate_pos, in_len);
                     }
                     if run_len > best_run_len {
                         best_run_len = run_len;
@@ -152,7 +154,7 @@ impl Compress {
                             break;
                         }
                     }
-                    candidate_pos = self.next_tab[candidate_pos] as usize;
+                    candidate_pos = self.chain[candidate_pos] as usize;
                 }
                 candidate_pos = best_candidate;
                 run_len = best_run_len;
@@ -161,11 +163,12 @@ impl Compress {
                     in_pos += 1;
                     continue;
                 } else {
-                    for i in 1..run_len {
-                        let h = hash(in_data, in_pos + i);
+                    for i in (1..run_len).step_by(self.step) {
+                        let p = in_pos + i;
+                        let h = hash(in_data, p, self.mask);
                         let c = self.hash_tab[h];
-                        self.next_tab[in_pos + i] = c;
-                        self.hash_tab[h] = (in_pos + i) as u32;
+                        self.chain[p] = c;
+                        self.hash_tab[h] = p as u32;
                     }
                 }
             } else {
@@ -222,8 +225,8 @@ impl Compress {
             out_data[tag_pos] = tag as u8;
             // println!("in_pos {in_pos} tag {tag}: cp {copy_len} skip {skip_len} off {offset} {candidate_pos}");
             in_pos += skip_len;
-            literal_len = 4;
-            in_pos += 4;
+            literal_len = 1;
+            in_pos += 1;
         }
         return Ok(out_pos);
     }
