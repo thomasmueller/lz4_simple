@@ -95,14 +95,14 @@ struct Compress {
     stop_at_match_len: usize,
     max_search: usize,
     mask: usize,
-    step: usize
+    step: usize,
+    level: usize
 }
 
 impl Compress {
-
     pub fn new(len: usize, level: usize) -> Compress {
-        let mut hash: Vec<u32> = Vec::new();
         let mask = (1 << (15 + level)) - 1;
+        let mut hash: Vec<u32> = Vec::new();
         hash.resize(mask + 1, u32::MAX);
         let mut chain: Vec<u32> = Vec::new();
         chain.resize(len, u32::MAX);
@@ -116,10 +116,111 @@ impl Compress {
             stop_at_match_len,
             max_search,
             mask,
-            step
+            step,
+            level
         }
     }
+
     fn compress_block(&mut self, in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: usize) -> Result<usize, Error> {
+        if self.level > 1 {
+            return self.compress_block_slow(in_data, in_len, out_data, o);
+        }
+        if in_len > in_data.len() {
+            return error("Input buffer too small");
+        }
+        if in_len > self.len {
+            return error("Temporary buffer too small");
+        }
+        let mut out_pos = o;
+        let mut literal_len = min(4, in_len);
+        let mut in_pos = literal_len;
+        loop {
+            let mut run_len: usize;
+            let candidate_pos: usize;
+            if in_pos + 16 < in_len {
+                let h = hash(in_data, in_pos, self.mask);
+                candidate_pos = self.hash_tab[h] as usize;
+                if in_pos & 3 == 0 {
+                    self.hash_tab[h] = in_pos as u32;
+                }
+                if candidate_pos >= in_pos || candidate_pos < o || candidate_pos + 0xffff < in_pos {
+                    literal_len += 1;
+                    in_pos += 1;
+                    continue;
+                } else {
+                    run_len = run_len_calc(in_data, in_pos, in_len, candidate_pos, in_len);
+                    if run_len < 4 {
+                        literal_len += 1;
+                        in_pos += 1;
+                        continue;
+                    }
+                    for i in (1..run_len).step_by(5) {
+                        let p = in_pos + i;
+                        let h = hash(in_data, p, self.mask);
+                        self.hash_tab[h] = p as u32;
+                    }
+                }
+            } else {
+                // we reached the last few bytes in the block,
+                // which are always encoded as literals
+                literal_len += in_len - in_pos;
+                in_pos = in_len;
+                run_len = 4;
+                candidate_pos = 0;
+                // println!("last literal block in_len {in_len} in_pos {in_pos} literals: {literal_len} ");
+            }
+            let tag_pos = out_pos;
+            out_pos += 1;
+            let copy_len = literal_len;
+            if literal_len >= 0xf {
+                while literal_len - 0xf >= 0xff {
+                    out_data[out_pos] = 0xff;
+                    out_pos += 1;
+                    literal_len -= 0xff;
+                }
+                out_data[out_pos] = (literal_len - 0xf) as u8;
+                out_pos += 1;
+                literal_len = 0xf;
+            }
+            for i in 0..copy_len {
+                let x = in_data[in_pos - copy_len + i];
+                out_data[out_pos + i] = x;
+            }
+            out_pos += copy_len;
+            if in_pos < in_len {
+                let offset = in_pos - candidate_pos;
+                out_data[out_pos] = offset as u8;
+                out_data[out_pos + 1] = (offset >> 8) as u8;
+                out_pos += 2;
+            } else {
+                let tag = literal_len << 4;
+                out_data[tag_pos] = tag as u8;
+                // println!("end in_pos {in_pos} tag {tag}: cp {copy_len} off {offset} {candidate_pos}");
+                break;
+            }
+            let skip_len = run_len;
+            run_len -= 4;
+            if run_len >= 0xf {
+                while run_len - 0xf >= 0xff {
+                    out_data[out_pos] = 0xff as u8;
+                    out_pos += 1;
+                    run_len -= 0xff;
+                }
+                out_data[out_pos] = (run_len - 0xf) as u8;
+                out_pos += 1;
+                run_len = 0xf;
+            }
+            let tag = (literal_len << 4) | run_len;
+            out_data[tag_pos] = tag as u8;
+            // println!("in_pos {in_pos} tag {tag}: cp {copy_len} skip {skip_len} off {offset} {candidate_pos}");
+            in_pos += skip_len;
+            literal_len = 1;
+            in_pos += 1;
+        }
+        return Ok(out_pos);
+    }
+
+    fn compress_block_slow(&mut self, in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>, o: usize) -> Result<usize, Error> {
         if in_len > in_data.len() {
             return error("Input buffer too small");
         }
