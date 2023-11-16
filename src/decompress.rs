@@ -8,9 +8,18 @@ use crate::xxhash32::read_vec_u32_le;
 use crate::xxhash32::XXHash32;
 use crate::xxhash32::error;
 
+pub fn decompress_stream() -> Result<usize, Error> {
+    return decompress(std::io::stdin(), std::io::stdout());
+}
+
 pub fn decompress_file(input_file_name: &str, output_file_name: &str) -> Result<usize, Error> {
     let in_file = File::open(input_file_name)?;
-    let mut reader = BufReader::new(in_file);
+    let out_file = File::create(output_file_name)?;
+    return decompress(in_file, out_file);
+}
+
+pub fn decompress<R: Read, W: Write>(read: R, write: W) -> Result<usize, Error> {
+    let mut reader = BufReader::new(read);
     let mut header: Vec<u8> = Vec::new();
     header.resize(7, 0);
     reader.read_exact(&mut header)?;
@@ -61,8 +70,7 @@ pub fn decompress_file(input_file_name: &str, output_file_name: &str) -> Result<
     block.resize(4 * 1024 * 1024, 0);
     let mut out_block: Vec<u8> = Vec::new();
     out_block.resize(4 * 1024 * 1024, 0);
-    let out_file = File::create(output_file_name)?;
-    let mut writer = BufWriter::new(out_file);
+    let mut writer = BufWriter::new(write);
     let mut output_file_size = 0;
     loop {
         reader.read_exact(&mut header[0..4])?;
@@ -119,7 +127,7 @@ pub fn decompress_block(in_data: &Vec<u8>, in_len: usize, out_data: &mut Vec<u8>
         out_pos += literal_len;
         // println!("    out_pos={out_pos} literal_len={literal_len}");
         p += literal_len;
-        if p >= in_len - 1 {
+        if p + 1 >= in_len {
             // println!("end out_pos={out_pos} p={p} literal_len={literal_len}");
             break;
         }

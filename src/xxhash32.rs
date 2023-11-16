@@ -8,6 +8,28 @@ pub fn error(message: &str) -> Result<usize, Error> {
     return Err(Error::new(ErrorKind::Other, message));
 }
 
+pub fn read_fully<R: Read>(mut read: R, buffer: &mut [u8]) -> Result<usize, Error> {
+    let mut count: usize = 0;
+    loop {
+        let r = read.read(&mut buffer[count..]);
+        match r {
+            Ok(0) => {
+                return Ok(count)
+            },
+            Ok(x) => {
+                count += x
+            },
+            Err(e) => {
+                if e.kind() == ErrorKind::Interrupted {
+                    // retry
+                } else {
+                    return Err(e);
+                }
+            }
+        };
+    }
+}
+
 pub fn read_vec_u32_le(data: &Vec<u8>, pos: usize) -> u32 {
     return (data[pos] as u32) |
         ((data[pos + 1] as u32) << 8) |
@@ -29,23 +51,27 @@ pub fn read_u32_le(data: &[u8], pos: usize) -> u32 {
         ((data[pos + 3] as u32) << 24);
 }
 
+pub fn xxhash32_stream() -> Result<u32, Error> {
+    return xxhash32(std::io::stdin());
+}
+
 pub fn xxhash32_file(input_file_name: &str) -> Result<u32, Error> {
     let in_file = File::open(input_file_name)?;
-    let mut remaining = in_file.metadata().unwrap().len();
-    let mut reader = BufReader::new(in_file);
+    return xxhash32(in_file);
+}
+
+fn xxhash32<R: Read>(read: R) -> Result<u32, Error> {
+    let mut reader = BufReader::new(read);
     let mut block: Vec<u8> = Vec::new();
-    let block_size = 1 * 1024 * 1024;
+    let block_size = 4 * 1024 * 1024;
     block.resize(block_size, 0);
     let mut hash = 0;
     let mut state = XXHash32::new(0);
-    while remaining > 0 {
-        let read = if remaining < block_size as u64 {
-            remaining as usize
-        } else {
-            block_size
-        };
-        reader.read_exact(&mut block[0..read])?;
-        remaining -= read as u64;
+    loop {
+        let read = read_fully(&mut reader, &mut block)?;
+        if read == 0 {
+            break;
+        }
         hash = state.update(&block, 0, read)?;
     }
     return Ok(hash);
