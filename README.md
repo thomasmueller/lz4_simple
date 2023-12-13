@@ -22,9 +22,9 @@ A very simple LZ4 implementation.
 
 The following numbers are including disk I/O:
 
-* 200 MB/s compression, which is slower than the "lz4" command line tool.
-* 800 MB/s decompression, which is similar to the "lz4" command line tool.
-* 3000 MB/s checksum, which is around half as fast as the "crc32" command line tool.
+* ~0.6 GB/s compression, which is a bit slower than the "lz4" command line tool.
+* ~1 GB/s decompression, which is similar to the "lz4" command line tool.
+* ~3 GB/s checksum, which is around half as fast as the "crc32" command line tool.
 
 ## Code Coverage
 
