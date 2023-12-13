@@ -31,10 +31,11 @@ pub fn read_fully<R: Read>(mut read: R, buffer: &mut [u8]) -> Result<usize, Erro
 }
 
 pub fn read_vec_u32_le(data: &Vec<u8>, pos: usize) -> u32 {
-    return (data[pos] as u32) |
-        ((data[pos + 1] as u32) << 8) |
-        ((data[pos + 2] as u32) << 16) |
-        ((data[pos + 3] as u32) << 24);
+    let d: [u8; 4] = data[pos..pos + 4].try_into().unwrap();
+    return (d[0] as u32) |
+        ((d[1] as u32) << 8) |
+        ((d[2] as u32) << 16) |
+        ((d[3] as u32) << 24);
 }
 
 pub fn write_vec_u32_le(data: &mut Vec<u8>, pos: usize, x: u32) {
@@ -45,10 +46,23 @@ pub fn write_vec_u32_le(data: &mut Vec<u8>, pos: usize, x: u32) {
 }
 
 pub fn read_u32_le(data: &[u8], pos: usize) -> u32 {
-    return (data[pos] as u32) |
-        ((data[pos + 1] as u32) << 8) |
-        ((data[pos + 2] as u32) << 16) |
-        ((data[pos + 3] as u32) << 24);
+    let d: [u8; 4] = data[pos..pos + 4].try_into().unwrap();
+    return (d[0] as u32) |
+        ((d[1] as u32) << 8) |
+        ((d[2] as u32) << 16) |
+        ((d[3] as u32) << 24);
+}
+
+pub fn read_u64_le(data: &[u8], pos: usize) -> u64 {
+    let d: [u8; 8] = data[pos..pos + 8].try_into().unwrap();
+    return (d[0] as u64) |
+        ((d[1] as u64) << 8) |
+        ((d[2] as u64) << 16) |
+        ((d[3] as u64) << 24) |
+        ((d[4] as u64) << 32) |
+        ((d[5] as u64) << 40) |
+        ((d[6] as u64) << 48) |
+        ((d[7] as u64) << 56);
 }
 
 pub fn xxhash32_stream() -> Result<u32, Error> {
