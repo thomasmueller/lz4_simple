@@ -105,8 +105,7 @@ fn compare_at(data: &Vec<u8>, a: &usize, b: &usize) -> Ordering {
 
 fn run_len_count(a: &Vec<u8>, a_len: usize, ai: usize, bi: usize) -> usize {
     let mut run_len = 0;
-    while ai + run_len < a_len - 24 &&
-        bi + run_len < a_len - 24 {
+    while ai + run_len < a_len - 24 {
         let ax =  read_u64_le(a, ai + run_len);
         let bx =  read_u64_le(a, bi + run_len);
         let diff = ax ^ bx;
@@ -118,7 +117,6 @@ fn run_len_count(a: &Vec<u8>, a_len: usize, ai: usize, bi: usize) -> usize {
         }
     }
     while ai + run_len < a_len - 16 &&
-        bi + run_len < a_len - 16 &&
         a[ai + run_len] == a[bi + run_len] {
         run_len += 1;
     }
@@ -127,7 +125,7 @@ fn run_len_count(a: &Vec<u8>, a_len: usize, ai: usize, bi: usize) -> usize {
 
 fn run_len_backwards(a: &Vec<u8>, a_len: usize, ai: usize, bi: usize, min: usize) -> usize {
     //return run_len_count(a, a_len, ai, bi);
-    if ai + min + 1 >= a_len - 32 || bi + min + 1 >= a_len - 32 {
+    if ai + min + 1 >= a_len - 32 {
         return run_len_count(a, a_len, ai, bi);
     }
     let mut run_len = min + 1;
@@ -142,13 +140,11 @@ fn run_len_backwards(a: &Vec<u8>, a_len: usize, ai: usize, bi: usize, min: usize
     }
     run_len = min + 1;
     while ai + run_len < a_len - 16 &&
-        bi + run_len < a_len - 16 &&
         a[ai + run_len] == a[bi + run_len] {
         run_len += 1;
     }
     return run_len;
 }
-
 
 struct Compress {
     hash_tab: Vec<u32>,
